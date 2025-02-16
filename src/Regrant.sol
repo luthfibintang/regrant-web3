@@ -10,8 +10,12 @@ contract Regrant is ReentrancyGuard {
         address borrower;
         uint256 depositAmount;
         uint256 rentalFee;
+        uint256 rentalDuration; // Rental duration in seconds
+        uint256 rentalStartTime; // Timestamp when rental starts
+        uint256 rentalEndTime; // Timestamp when rental ends
         bool isCompleted;
         bool isDisputed;
+        bool isReturnRequested; // Flag to indicate if return is requested
     }
 
     // Platform provider address (Regrant)
@@ -22,11 +26,13 @@ contract Regrant is ReentrancyGuard {
     uint256 public transactionCounter;
 
     // Events
-    event TransactionCreated(uint256 transactionId, address renter, address borrower, uint256 depositAmount, uint256 rentalFee);
+    event TransactionCreated(uint256 transactionId, address renter, address borrower, uint256 depositAmount, uint256 rentalFee, uint256 rentalDuration);
     event FundsLocked(uint256 transactionId);
     event FundsReleased(uint256 transactionId);
     event DisputeInitiated(uint256 transactionId);
     event DisputeResolved(uint256 transactionId, bool refundBorrower);
+    event ReturnRequested(uint256 transactionId);
+    event RentalExpired(uint256 transactionId);
 
     // Constructor to set the platform provider address
     constructor() {
@@ -58,24 +64,32 @@ contract Regrant is ReentrancyGuard {
     }
 
     // Function for platform provider to create a new transaction
-    function createTransaction(address renter, address borrower, uint256 depositAmount, uint256 rentalFee) external {
+    function createTransaction(address renter, address borrower, uint256 depositAmount, uint256 rentalFee, uint256 rentalDuration) external {
         transactionCounter++;
         transactions[transactionCounter] = Transaction({
             renter: renter,
             borrower: borrower,
             depositAmount: depositAmount,
             rentalFee: rentalFee,
+            rentalDuration: rentalDuration,
+            rentalStartTime: 0, // Set to 0 initially
+            rentalEndTime: 0, // Set to 0 initially
             isCompleted: false,
-            isDisputed: false
+            isDisputed: false,
+            isReturnRequested: false
         });
 
-        emit TransactionCreated(transactionCounter, renter, borrower, depositAmount, rentalFee);
+        emit TransactionCreated(transactionCounter, renter, borrower, depositAmount, rentalFee, rentalDuration);
     }
 
-    // Function for borrower to lock funds (deposit + rental fee)
+    // Function for borrower to lock funds (deposit + rental fee) and start rental
     function lockFunds(uint256 transactionId) external payable onlyBorrower(transactionId) onlyActiveTransaction(transactionId) {
         Transaction storage transaction = transactions[transactionId];
         require(msg.value == transaction.depositAmount + transaction.rentalFee, "Incorrect amount sent");
+
+        // Set rental start and end times
+        transaction.rentalStartTime = block.timestamp;
+        transaction.rentalEndTime = block.timestamp + transaction.rentalDuration;
 
         emit FundsLocked(transactionId);
     }
@@ -103,7 +117,34 @@ contract Regrant is ReentrancyGuard {
         emit FundsReleased(transactionId);
     }
 
-    // Still not functioning or rather idk to implement this
+    // Function for borrower to request return of the item
+    function requestReturn(uint256 transactionId) external onlyBorrower(transactionId) onlyActiveTransaction(transactionId) {
+        Transaction storage transaction = transactions[transactionId];
+        require(block.timestamp <= transaction.rentalEndTime, "Rental period has already ended");
+
+        transaction.isReturnRequested = true;
+        emit ReturnRequested(transactionId);
+    }
+
+    // Function for renter to accept return and release funds
+    function acceptReturn(uint256 transactionId) external onlyRenter(transactionId) onlyActiveTransaction(transactionId) {
+        Transaction storage transaction = transactions[transactionId];
+        require(transaction.isReturnRequested, "No return request to accept");
+
+        releaseFunds(transactionId);
+    }
+
+    // Function to automatically release funds if rental period ends without return
+    function expireRental(uint256 transactionId) external onlyActiveTransaction(transactionId) {
+        Transaction storage transaction = transactions[transactionId];
+        require(block.timestamp > transaction.rentalEndTime, "Rental period has not ended yet");
+        require(!transaction.isReturnRequested, "Return has already been requested");
+
+        // Automatically release funds to renter
+        releaseFunds(transactionId);
+        emit RentalExpired(transactionId);
+    }
+
     // Function for renter to initiate a dispute
     function initiateDispute(uint256 transactionId) external onlyRenter(transactionId) onlyActiveTransaction(transactionId) {
         Transaction storage transaction = transactions[transactionId];

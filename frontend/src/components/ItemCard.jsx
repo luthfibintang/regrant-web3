@@ -1,30 +1,18 @@
-// src/components/Card.jsx
-import { FiMapPin } from "react-icons/fi";
-import { FaGift } from "react-icons/fa";
-
-const Card = ({ item }) => {
+const ItemCard = ({ item }) => {
   return (
-    <div className="border p-4 rounded-lg shadow-md bg-white">
+    <div className="border p-4 rounded-lg shadow-md">
       <img
-        src={item.image}
-        alt={item.name}
-        className="w-full h-32 object-cover rounded-md mb-3"
+        src={`https://picsum.photos/200?random=${item._id}`}
+        alt={item.itemName}
+        className="w-full h-52 object-cover rounded-lg"
       />
-      <h3 className="text-lg font-semibold">{item.name}</h3>
-      <div className="flex items-center text-gray-600 text-sm">
-        <FiMapPin className="mr-1" />
-        {item.distance}
-      </div>
-      <span
-        className={`text-sm font-semibold ${
-          item.type === "Gift" ? "text-green-600" : "text-blue-600"
-        }`}
-      >
-        {item.type === "Gift" ? <FaGift className="inline mr-1" /> : "🔄"}{" "}
-        {item.type}
-      </span>
+      <h2 className="text-lg font-bold mt-2">{item.itemName}</h2>
+      <p className="text-gray-500">
+        Owner: {item.ownerAddress.slice(0, 10)}...
+      </p>
+      <p className="text-primary font-semibold">{item.rentalFee} ETH/day</p>
     </div>
   );
 };
 
-export default Card;
+export default ItemCard;

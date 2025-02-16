@@ -34,7 +34,7 @@ const Home = () => {
 
       if (response.data.success) {
         setWalletAddress(address); // Successfully authenticated
-        navigate("/dashboard"); // Redirect to the dashboard
+        navigate("/dashboard", { state: { walletAddress: address } }); // Pass wallet address to Dashboard
       } else {
         alert("Authentication failed");
       }
