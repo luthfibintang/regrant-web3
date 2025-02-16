@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #299b65;
+  --color-hover: #387b5c;
+  --color-screen: #f1f1f1;
+  --color-heading: #252525;
+  --color-subheading: #808080;
+  --color-alert: #a51b33;
+  --color-disable: #a7a7a7;
+}
+
+/* body {
+  font-family: "sans-serif", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+} */
